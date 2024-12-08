@@ -50,12 +50,13 @@ def evaluate_func(params) -> tuple[int, int]:
     dataset_row = params["dataset_row"]
     decompiled_c_func = params["c_func_decompile"]
 
+    print(f"decompiled c func: \n{decompiled_c_func}")
+
     timeout = 10
     flag_compile = 0
     flag_run = 0
 
     try:
-        # Wrapper の実行
         synth_wrapper = Wrapper(
             c_deps=dataset_row["synth_deps"]
             + "\n"
@@ -193,7 +194,7 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
     return 0
 
 
-def compile_and_write(input_text, error_counter) -> dict[str, str]:
+def compile_and_write(function_name, input_text, error_counter) -> dict[str, str]:
     asm_all = {}
 
     input_file_name = "tmp.c"
@@ -215,7 +216,7 @@ def compile_and_write(input_text, error_counter) -> dict[str, str]:
 
             # Generate assembly code from object file using objdump
             subprocess.run(
-                f"objdump -d {obj_output} > {asm_output}",
+                f"objdump -d --disassemble={function_name} {obj_output} > {asm_output}",
                 shell=True,
                 check=True,
                 stdout=subprocess.DEVNULL,
@@ -279,7 +280,7 @@ def run_eval_pipeline(args: Namespace) -> int:
         stop_sequences = [tokenizer.eos_token]
 
         # prompt templates
-        before = "# What is the source code?\n"
+        before = "# This is the assembly code:\n"
         after = "\n# What is the source code?\n"
         inputs = []
         testset = []
@@ -300,7 +301,7 @@ def run_eval_pipeline(args: Namespace) -> int:
                 + row["func_def"]
             )
             asm_all: dict[str, str] = compile_and_write(
-                c_source_code, compile_error_counter
+                row["fname"], c_source_code, compile_error_counter
             )
 
             # Prepare the prompt
