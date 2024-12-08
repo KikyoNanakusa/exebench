@@ -79,7 +79,14 @@ def _get_tmp_path(
                 ntf.flush()
 
             os.chmod(
-                ntf.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+                ntf.name,
+                stat.S_IRUSR
+                | stat.S_IWUSR
+                | stat.S_IXUSR  # 所有者
+                | stat.S_IRGRP
+                | stat.S_IXGRP  # グループ
+                | stat.S_IROTH
+                | stat.S_IXOTH,
             )
             yield ntf.name
     except OSError:
