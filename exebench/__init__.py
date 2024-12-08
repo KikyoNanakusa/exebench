@@ -65,19 +65,24 @@ def _cleanup(path_pattern):
 def _get_tmp_path(
     content: Optional[str] = None, suffix: Optional[str] = None, delete=True
 ) -> str:
+    # 保存先を ./nas/tmp に変更
+    tmp_dir = "./nas/tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+
     prefix = _get_host_process_id()
     try:
         with tempfile.NamedTemporaryFile(
-            prefix=prefix, suffix=suffix, delete=delete, mode="w+"
+            dir=tmp_dir, prefix=prefix, suffix=suffix, delete=delete, mode="w+"
         ) as ntf:
             if content:
                 ntf.write(content)
                 ntf.flush()
             yield ntf.name
     except OSError:
-        _cleanup(os.path.join(tempfile.gettempdir(), prefix, "*"))
+        # クリーンアップ処理
+        _cleanup(os.path.join(tmp_dir, prefix, "*"))
         with tempfile.NamedTemporaryFile(
-            prefix=prefix, suffix=suffix, delete=delete, mode="w+"
+            dir=tmp_dir, prefix=prefix, suffix=suffix, delete=delete, mode="w+"
         ) as ntf:
             if content:
                 ntf.write(content)
