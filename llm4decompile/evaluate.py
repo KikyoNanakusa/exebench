@@ -20,6 +20,7 @@ logger.add(sys.stdout, colorize=False, format="{time} {level} {message}")
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 zeros_pattern = r"^0+\s"  # 0000000000000...
 OPT = ["O0", "O1", "O2", "O3"]
+compile_error_count = 0
 
 
 def parse_args() -> Namespace:
@@ -219,6 +220,7 @@ def compile_and_write(input_text) -> dict[str, str]:
 
     except Exception as e:
         print(f"Error {e}")
+        compile_error_count += 1
 
     finally:
         # Remove the assembly output files
@@ -253,7 +255,11 @@ def run_eval_pipeline(args: Namespace) -> int:
         inputs = []
         testset = []
 
-        for row in tqdm(dataset, desc="Processing compilation"):
+        compile_count = 0
+        for row in tqdm(
+            dataset,
+            desc=f"Processing compilation, error count {compile_error_count} / {compile_count}",
+        ):
             # compile the C program to assembly
             c_source_code = (
                 row["synth_deps"]
@@ -271,6 +277,8 @@ def run_eval_pipeline(args: Namespace) -> int:
 
                 data = {"opt": opt, "prompt": prompt, "exebench_dict": row}
                 testset.append(data)
+
+            compile_count += 1
 
         # Prepare the model
         llm = LLM(
