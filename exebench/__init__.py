@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 import tempfile
 import contextlib
 import os
+import stat
 import shutil
 import glob
 import re
@@ -76,6 +77,10 @@ def _get_tmp_path(
             if content:
                 ntf.write(content)
                 ntf.flush()
+
+            os.chmod(
+                ntf.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+            )
             yield ntf.name
     except OSError:
         # クリーンアップ処理
