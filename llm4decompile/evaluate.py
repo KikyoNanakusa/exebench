@@ -254,7 +254,13 @@ def run_eval_pipeline(args: Namespace) -> int:
 
         for row in dataset:
             # compile the C program to assembly
-            c_source_code = row["synth_deps"] + "\n" + row["func_def"]
+            c_source_code = (
+                row["synth_deps"]
+                + "\n"
+                + row["synth_io_pairs"]["dummy_funcs"][0]
+                + "\n"
+                + row["func_def"]
+            )
             asm_all: dict[str, str] = compile_and_write(c_source_code)
 
             # Prepare the prompt
