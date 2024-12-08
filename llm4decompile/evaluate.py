@@ -344,9 +344,9 @@ def run_eval_pipeline(args: Namespace) -> int:
         for i in range(args.repeat):
             logger.info(f"The {i+1} loop...")
             gen_results = llm.generate(inputs, sampling_params)
-            if args.debug:
-                print(f"gen_results: {gen_results}")
             gen_results = [[output.outputs[0].text] for output in gen_results]
+            if args.debug:
+                print(f"gen_results: \n{gen_results}")
             gen_results_repeat.append(gen_results)
 
     except Exception as e:
