@@ -242,7 +242,6 @@ def run_eval_pipeline(args: Namespace) -> int:
 
     try:
         dataset = load_dataset("jordiae/exebench", split="test_synth")
-        logger.info(f"Loaded testset with {len(exebench_dict_to_dict(dataset))} cases")
 
         tokenizer = AutoTokenizer.from_pretrained(model_path)
         stop_sequences = [tokenizer.eos_token]
