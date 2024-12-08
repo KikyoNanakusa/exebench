@@ -28,25 +28,37 @@ def _run_command(
     stdin: Optional[str] = None,
     timeout: Optional[int] = _DEFAULT_CMD_TIMEOUT,
 ) -> Tuple[str, str]:
-    output = subprocess.run(
-        command.split(),
-        capture_output=True,
-        text=True,
-        input=stdin,
-        timeout=timeout,
-        encoding="utf-8",
-    )
-    stdout = (
-        output.stdout.decode("utf-8")
-        if isinstance(output.stdout, bytes)
-        else output.stdout
-    )
-    stderr = (
-        output.stderr.decode("utf-8")
-        if isinstance(output.stderr, bytes)
-        else output.stderr
-    )
-    return stdout, stderr
+    try:
+        output = subprocess.run(
+            command.split(),
+            capture_output=True,
+            text=True,
+            input=stdin,
+            timeout=timeout,
+            encoding="utf-8",
+        )
+        stdout = (
+            output.stdout.decode("utf-8")
+            if isinstance(output.stdout, bytes)
+            else output.stdout
+        )
+        stderr = (
+            output.stderr.decode("utf-8")
+            if isinstance(output.stderr, bytes)
+            else output.stderr
+        )
+        if stderr:
+            print(f"Command error: {stderr}")
+        return stdout, stderr
+    except subprocess.TimeoutExpired as e:
+        print(f"Command timeout: {e}")
+        raise
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed with return code {e.returncode}: {e.output}")
+        raise
+    except Exception as e:
+        print(f"Unexpected error while running command: {e}")
+        raise
 
 
 def _get_host_process_id():
@@ -72,7 +84,7 @@ def _get_tmp_path(
     prefix = _get_host_process_id()
     try:
         with tempfile.NamedTemporaryFile(
-            dir=tmp_dir, prefix=prefix, suffix=suffix, delete=delete, mode="w+"
+            dir=tmp_dir, prefix=prefix, suffix=suffix, delete=False, mode="w+"
         ) as ntf:
             if content:
                 ntf.write(content)
@@ -89,16 +101,15 @@ def _get_tmp_path(
                 | stat.S_IXOTH,
             )
             yield ntf.name
-    except OSError:
-        # クリーンアップ処理
-        _cleanup(os.path.join(tmp_dir, prefix, "*"))
-        with tempfile.NamedTemporaryFile(
-            dir=tmp_dir, prefix=prefix, suffix=suffix, delete=delete, mode="w+"
-        ) as ntf:
-            if content:
-                ntf.write(content)
-                ntf.flush()
-            yield ntf.name
+    except Exception as e:
+        print(f"Error creating temporary file: {e}")
+        raise
+    finally:
+        if delete and os.path.exists(ntf.name):
+            try:
+                os.remove(ntf.name)
+            except Exception as e:
+                print(f"Error cleaning up temporary file: {e}")
 
 
 class _Assembler:

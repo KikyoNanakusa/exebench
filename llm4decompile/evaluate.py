@@ -39,6 +39,14 @@ def parse_args() -> Namespace:
 
 
 def evaluate_func(params) -> tuple[int, int]:
+    import logging
+
+    logging.basicConfig(
+        level=logging.ERROR,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
     dataset_row = params["dataset_row"]
     decompiled_c_func = params["c_func_decompile"]
 
@@ -46,55 +54,80 @@ def evaluate_func(params) -> tuple[int, int]:
     flag_compile = 0
     flag_run = 0
 
-    synth_wrapper = Wrapper(
-        c_deps=dataset_row["synth_deps"]
-        + "\n"
-        + dataset_row["synth_io_pairs"]["dummy_funcs"][0]
-        + "\n"
-        + decompiled_c_func,
-        func_c_signature=dataset_row["func_head_types"].replace("extern", ""),
-        func_assembly=None,
-        cpp_wrapper=dataset_row["synth_exe_wrapper"],
-    )
+    try:
+        # Wrapper の実行
+        synth_wrapper = Wrapper(
+            c_deps=dataset_row["synth_deps"]
+            + "\n"
+            + dataset_row["synth_io_pairs"]["dummy_funcs"][0]
+            + "\n"
+            + decompiled_c_func,
+            func_c_signature=dataset_row["func_head_types"].replace("extern", ""),
+            func_assembly=None,
+            cpp_wrapper=dataset_row["synth_exe_wrapper"],
+        )
 
-    # Check if the decompiled function can be compiled and run correctly
-    test_output = synth_wrapper(
-        exebench_dict_to_dict(dataset_row["synth_io_pairs"]["input"][0])
-    )
+        # Check if the decompiled function can be compiled and run correctly
+        test_output = synth_wrapper(
+            exebench_dict_to_dict(dataset_row["synth_io_pairs"]["input"][0])
+        )
 
-    if diff_io(
-        test_output, exebench_dict_to_dict(dataset_row["synth_io_pairs"]["output"][0])
-    ):
-        flag_run = 1
+        if diff_io(
+            test_output,
+            exebench_dict_to_dict(dataset_row["synth_io_pairs"]["output"][0]),
+        ):
+            flag_run = 1
+    except Exception as e:
+        logging.error(f"Error in Wrapper execution: {e}")
+        return flag_compile, flag_run
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        pid = os.getpid()
-        c_file_onlyfunc = os.path.join(temp_dir, f"onlyfunc_{pid}.c")
-        executable_onlyfunc = os.path.join(temp_dir, f"onlyfunc_{pid}")
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pid = os.getpid()
+            c_file_onlyfunc = os.path.join(temp_dir, f"onlyfunc_{pid}.c")
+            executable_onlyfunc = os.path.join(temp_dir, f"onlyfunc_{pid}")
 
-        with open(c_file_onlyfunc, "w") as f:
-            f.write(dataset_row["synth_deps"] + "\n" + decompiled_c_func)
+            with open(c_file_onlyfunc, "w") as f:
+                f.write(dataset_row["synth_deps"] + "\n" + decompiled_c_func)
 
-        # Compile the C program to an assembly
-        compile_command = [
-            "gcc",
-            "-c",
-            "-S",
-            c_file_onlyfunc,
-            "-o",
-            executable_onlyfunc,
-            "-lm",
-        ]
-        try:
+            # Compile the C program to an assembly
+            compile_command = [
+                "gcc",
+                "-c",
+                "-S",
+                c_file_onlyfunc,
+                "-o",
+                executable_onlyfunc,
+                "-lm",
+            ]
             subprocess.run(compile_command, check=True, timeout=timeout)
             flag_compile = 1
-        except:
-            return flag_compile, flag_run
+    except subprocess.CalledProcessError as e:
+        logging.error(f"GCC compilation failed: {e}")
+    except subprocess.TimeoutExpired as e:
+        logging.error(f"GCC compilation timed out: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error during GCC compilation: {e}")
 
     return flag_compile, flag_run
 
 
 def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
+    import logging
+
+    logging.basicConfig(
+        level=logging.ERROR,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
+    def safe_evaluate_func(task):
+        try:
+            return evaluate_func(task)
+        except Exception as e:
+            logging.error(f"Error in task {task}: {e}")
+            return (0, 0)  # デフォルト値を返す
+
     all_stats = []
 
     for gen_index, gen_results in enumerate(gen_results_repeat):
@@ -107,10 +140,9 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
                 for data, output in zip(testset, gen_results)
             ]
 
-            eval_results = list(tqdm(pool.imap(evaluate_func, tasks), total=len(tasks)))
-
-        pool.terminate()
-        pool.join()
+            eval_results = list(
+                tqdm(pool.imap(safe_evaluate_func, tasks), total=len(tasks))
+            )
 
         stats: dict[str, dict[str, int]] = {
             opt: {"compile": 0, "run": 0, "total": 0} for opt in OPT
