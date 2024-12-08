@@ -112,6 +112,14 @@ def evaluate_func(params) -> tuple[int, int]:
     return flag_compile, flag_run
 
 
+def safe_evaluate_func(task):
+    try:
+        return evaluate_func(task)
+    except Exception as e:
+        logging.error(f"Error in task {task}: {e}")
+        return (0, 0)  # デフォルト値を返す
+
+
 def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
     import logging
 
@@ -120,13 +128,6 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[logging.StreamHandler()],
     )
-
-    def safe_evaluate_func(task):
-        try:
-            return evaluate_func(task)
-        except Exception as e:
-            logging.error(f"Error in task {task}: {e}")
-            return (0, 0)  # デフォルト値を返す
 
     all_stats = []
 
