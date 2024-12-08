@@ -65,8 +65,7 @@ def _cleanup(path_pattern):
 def _get_tmp_path(
     content: Optional[str] = None, suffix: Optional[str] = None, delete=True
 ) -> str:
-    # 保存先を ./nas/tmp に変更
-    tmp_dir = "./nas/tmp"
+    tmp_dir = "/work/nas/tmp"
     os.makedirs(tmp_dir, exist_ok=True)
 
     prefix = _get_host_process_id()
