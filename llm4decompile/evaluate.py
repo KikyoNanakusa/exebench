@@ -25,7 +25,7 @@ OPT = ["O0", "O1", "O2", "O3"]
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--model_path", type=str)
-    parser.add_argument("--gpus", type=int, default=8)
+    parser.add_argument("--gpus", type=int, default=3)
     parser.add_argument("--max_num_seqs", type=int, default=8)
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.82)
     parser.add_argument("--temperature", type=float, default=0)
@@ -238,11 +238,10 @@ def run_eval_pipeline(args: Namespace) -> int:
     if not model_path.exists() or not model_path.is_dir():
         logger.error(f"Invalid model {model_path}")
         return -1
+    print(f"Model loaded from {model_path}")
 
     try:
-        dataset = load_dataset(
-            "jordiae/exebench", split="test_synth", use_auth_token=True
-        )
+        dataset = load_dataset("jordiae/exebench", split="test_synth")
         logger.info(f"Loaded testset with {len(exebench_dict_to_dict(dataset))} cases")
 
         tokenizer = AutoTokenizer.from_pretrained(model_path)
