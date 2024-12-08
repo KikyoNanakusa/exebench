@@ -161,16 +161,13 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
     return 0
 
 
-def compile_and_write(input_text) -> dict[str, str]:
-    global compile_error_count
+def compile_and_write(input_text, error_counter) -> dict[str, str]:
     asm_all = {}
     if "/* Variables and functions */" in input_text:
         # Exclude macro and types
         input_text = input_text.split("/* Variables and functions */")[-1]
         input_text = "\n\n".join(input_text.split("\n\n")[1:])  # Exclude variables
-        ##### begin of remove __attribute__
         input_text = input_text.replace("__attribute__((used)) ", "")
-        ##### end of remove __attribute__
 
     input_file_name = "tmp.c"
     with open(input_file_name, "w") as f:
@@ -185,18 +182,21 @@ def compile_and_write(input_text) -> dict[str, str]:
             subprocess.run(
                 ["gcc", "-c", "-o", obj_output, input_file_name, "-" + opt_state],
                 check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
 
             # Generate assembly code from object file using objdump
             subprocess.run(
                 f"objdump -d {obj_output} > {asm_output}",
-                shell=True,  # Use shell to handle redirection
+                shell=True,
                 check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
 
             with open(asm_output) as f:
                 asm = f.read()
-                ##### start of clean up
                 asm_clean = ""
                 asm = asm.split("Disassembly of section .text:")[-1].strip()
                 for tmp in asm.split("\n"):
@@ -206,12 +206,10 @@ def compile_and_write(input_text) -> dict[str, str]:
                 if len(asm_clean.split("\n")) < 4:
                     raise ValueError("compile fails")
                 asm = asm_clean
-                ##### end of clean up
 
-                ##### start of filter digits and attribute
+                # Filter digits and attributes
                 asm = re.sub(zeros_pattern, "", asm)
                 asm = asm.replace("__attribute__((used)) ", "")
-                ##### end of filter digits
 
                 asm_all[opt_state] = asm
 
@@ -219,9 +217,10 @@ def compile_and_write(input_text) -> dict[str, str]:
             if os.path.exists(obj_output):
                 os.remove(obj_output)
 
-    except Exception as e:
-        # print(f"Error {e}")
-        compile_error_count += 1
+    except Exception:
+        # カウントのインクリメント
+        with error_counter.get_lock():
+            error_counter.value += 1
 
     finally:
         # Remove the assembly output files
@@ -237,6 +236,8 @@ def compile_and_write(input_text) -> dict[str, str]:
 
 
 def run_eval_pipeline(args: Namespace) -> int:
+    compile_error_counter = multiprocessing.Value("i", 0)
+
     # load the model
     model_path = Path(args.model_path)
     if not model_path.exists() or not model_path.is_dir():
@@ -257,11 +258,13 @@ def run_eval_pipeline(args: Namespace) -> int:
         testset = []
 
         compile_count = 0
-        for row in tqdm(
+        progress_bar = tqdm(
             dataset,
-            desc=f"Processing compilation, error count {compile_error_count} / {compile_count}",
-        ):
-            # compile the C program to assembly
+            desc=f"Processing compilation, error count {compile_error_counter.value}",
+        )
+
+        for row in progress_bar:
+            # Compile the C program to assembly
             c_source_code = (
                 row["synth_deps"]
                 + "\n"
@@ -269,7 +272,9 @@ def run_eval_pipeline(args: Namespace) -> int:
                 + "\n"
                 + row["func_def"]
             )
-            asm_all: dict[str, str] = compile_and_write(c_source_code)
+            asm_all: dict[str, str] = compile_and_write(
+                c_source_code, compile_error_counter
+            )
 
             # Prepare the prompt
             for opt, asm in asm_all.items():
@@ -280,13 +285,16 @@ def run_eval_pipeline(args: Namespace) -> int:
                 testset.append(data)
 
             compile_count += 1
+            # tqdmの進捗バーを更新
+            progress_bar.set_description(
+                f"Processing compilation, error count {compile_error_counter.value}"
+            )
 
         # Prepare the model
         llm = LLM(
             model=args.model_path,
             tensor_parallel_size=args.gpus,
             max_model_len=args.max_total_tokens,
-            # max_num_seqs=args.max_num_seqs,
             gpu_memory_utilization=args.gpu_memory_utilization,
         )
 
