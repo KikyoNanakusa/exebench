@@ -78,6 +78,7 @@ def evaluate_func(params) -> tuple[int, int]:
         # Compile the C program to an assembly
         compile_command = [
             "gcc",
+            "-c",
             "-S",
             c_file_onlyfunc,
             "-o",
@@ -252,7 +253,7 @@ def run_eval_pipeline(args: Namespace) -> int:
         inputs = []
         testset = []
 
-        for row in dataset:
+        for row in tqdm(dataset, desc="Processing compilation"):
             # compile the C program to assembly
             c_source_code = (
                 row["synth_deps"]
