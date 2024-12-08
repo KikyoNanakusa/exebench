@@ -125,6 +125,9 @@ class _DefaultAssembler(_Assembler):
 
                     stdout, stderr = _run_command(cmd)
 
+                    if stderr:
+                        print(f"stderr: {stderr}")
+
         return Path(executable_path)
 
 
