@@ -162,6 +162,7 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
 
 
 def compile_and_write(input_text) -> dict[str, str]:
+    global compile_error_count
     asm_all = {}
     if "/* Variables and functions */" in input_text:
         # Exclude macro and types
@@ -219,7 +220,7 @@ def compile_and_write(input_text) -> dict[str, str]:
                 os.remove(obj_output)
 
     except Exception as e:
-        print(f"Error {e}")
+        # print(f"Error {e}")
         compile_error_count += 1
 
     finally:
