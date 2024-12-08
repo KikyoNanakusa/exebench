@@ -28,7 +28,12 @@ def _run_command(
     timeout: Optional[int] = _DEFAULT_CMD_TIMEOUT,
 ) -> Tuple[str, str]:
     output = subprocess.run(
-        command.split(), capture_output=True, text=True, input=stdin, timeout=timeout
+        command.split(),
+        capture_output=True,
+        text=True,
+        input=stdin,
+        timeout=timeout,
+        encoding="utf-8",
     )
     stdout = (
         output.stdout.decode("utf-8")

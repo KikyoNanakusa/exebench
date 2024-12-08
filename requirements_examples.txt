@@ -1,2 +1,6 @@
 datasets
 zstandard
+transformers
+loguru
+tqdm
+vllm
