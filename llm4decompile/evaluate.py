@@ -26,14 +26,13 @@ compile_error_count = 0
 def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--model_path", type=str)
-    parser.add_argument("--gpus", type=int, default=3)
+    parser.add_argument("--gpus", type=int, default=2)  # Should be factor of 32
     parser.add_argument("--max_num_seqs", type=int, default=8)
     parser.add_argument("--gpu_memory_utilization", type=float, default=0.82)
     parser.add_argument("--temperature", type=float, default=0)
     parser.add_argument("--max_total_tokens", type=int, default=8192)
     parser.add_argument("--max_new_tokens", type=int, default=512)
     parser.add_argument("--repeat", type=int, default=1)
-    parser.add_argument("--testset_path", type=str)
     parser.add_argument("--output_path", type=str, default=None)
     parser.add_argument("--num_workers", type=int, default=16)
     return parser.parse_args()
