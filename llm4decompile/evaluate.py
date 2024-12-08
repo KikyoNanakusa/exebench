@@ -163,11 +163,6 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
 
 def compile_and_write(input_text, error_counter) -> dict[str, str]:
     asm_all = {}
-    if "/* Variables and functions */" in input_text:
-        # Exclude macro and types
-        input_text = input_text.split("/* Variables and functions */")[-1]
-        input_text = "\n\n".join(input_text.split("\n\n")[1:])  # Exclude variables
-        input_text = input_text.replace("__attribute__((used)) ", "")
 
     input_file_name = "tmp.c"
     with open(input_file_name, "w") as f:
