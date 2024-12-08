@@ -35,6 +35,7 @@ def parse_args() -> Namespace:
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--output_path", type=str, default=None)
     parser.add_argument("--num_workers", type=int, default=16)
+    parser.add_argument("--debug", type=bool, default=False)
     return parser.parse_args()
 
 
@@ -291,6 +292,7 @@ def run_eval_pipeline(args: Namespace) -> int:
             desc=f"Processing compilation, error count {compile_error_counter.value}",
         )
 
+        count = 0  # for debugging
         for row in progress_bar:
             # Compile the C program to assembly
             c_source_code = (
@@ -317,6 +319,11 @@ def run_eval_pipeline(args: Namespace) -> int:
             progress_bar.set_description(
                 f"Processing compilation, error count {compile_error_counter.value}"
             )
+
+            if args.debug:
+                count += 1
+                if count > 5:
+                    break
 
         # Prepare the model
         llm = LLM(
