@@ -51,7 +51,7 @@ def evaluate_func(params) -> tuple[int, int]:
     dataset_row = params["dataset_row"]
     decompiled_c_func = params["c_func_decompile"]
 
-    print(f"decompiled c func: \n{decompiled_c_func}")
+    # print(f"decompiled c func: \n{decompiled_c_func}")
 
     timeout = 10
     flag_compile = 0
@@ -344,6 +344,8 @@ def run_eval_pipeline(args: Namespace) -> int:
         for i in range(args.repeat):
             logger.info(f"The {i+1} loop...")
             gen_results = llm.generate(inputs, sampling_params)
+            if args.debug:
+                print(f"gen_results: {gen_results}")
             gen_results = [[output.outputs[0].text] for output in gen_results]
             gen_results_repeat.append(gen_results)
 
