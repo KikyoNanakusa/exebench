@@ -314,8 +314,8 @@ def is_exebench_function_valid(row) -> bool:
             test_output,
             exebench_dict_to_dict(row["synth_io_pairs"]["output"][0]),
         )
-    except Exception as e:
-        logger.error(f"Error in validating Wrapper execution: {e}")
+
+    except Exception:
         return False
 
 
@@ -323,6 +323,7 @@ def process_row(row, args):
     try:
         # Check exebench function itself is testable or not
         if not is_exebench_function_valid(row):
+            logger.error(f"Function {row['fname']} is not testable")
             return None
 
         c_source_code = (
@@ -391,6 +392,15 @@ def run_eval_pipeline(args: Namespace) -> int:
         gen_results = llm.generate(prompts, sampling_params)
         gen_results = [[output.outputs[0].text] for output in gen_results]
         gen_results_repeat.append(gen_results)
+
+    if args.debug:
+        with open("prompts.txt", "w") as f:
+            for prompt in prompts:
+                f.write(prompt + "\n")
+        with open("prediction.txt", "w") as f:
+            for gen_results in gen_results_repeat:
+                for output in gen_results:
+                    f.write(output[0] + "\n")
 
     return decompile_pass_rate(testset, gen_results_repeat, args)
 

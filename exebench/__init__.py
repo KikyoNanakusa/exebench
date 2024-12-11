@@ -94,9 +94,9 @@ def _get_tmp_path(
                 ntf.name,
                 stat.S_IRUSR
                 | stat.S_IWUSR
-                | stat.S_IXUSR  # 所有者
+                | stat.S_IXUSR
                 | stat.S_IRGRP
-                | stat.S_IXGRP  # グループ
+                | stat.S_IXGRP
                 | stat.S_IROTH
                 | stat.S_IXOTH,
             )
@@ -129,12 +129,13 @@ class _DefaultAssembler(_Assembler):
                     cpp_wrapper,
                 )
                 with _get_tmp_path(content=cpp_wrapper, suffix=".cpp") as cpp_path:
-                    cmd = f"g++ -fpermissive -O2 -w -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I{_SYNTH_LIBS_PATH}"
+                    cmd = f"g++ -fpermissive -O2 -w -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I {_SYNTH_LIBS_PATH}"
 
                     stdout, stderr = _run_command(cmd)
 
                     if stderr:
                         print(f"stderr: {stderr}")
+                        excutable_path = None
 
         return Path(executable_path)
 
@@ -169,25 +170,33 @@ class Wrapper:
 
     def __call__(self, inp, return_stdout_and_stderr=False):
         executable = self._compiled_exe_path
+        if executable is None:
+            raise Exception("Error compiling executable")
 
-        with _get_tmp_path(content=None, suffix=".json") as input_tmp_json_path:
-            output_file = "".join(input_tmp_json_path.split(".")[:1]) + "-out.json"
+        try:
+            with _get_tmp_path(content=None, suffix=".json") as input_tmp_json_path:
+                output_file = "".join(input_tmp_json_path.split(".")[:1]) + "-out.json"
 
-            with open(input_tmp_json_path, "w") as f:
-                json.dump(inp, f)
+                with open(input_tmp_json_path, "w") as f:
+                    json.dump(inp, f)
 
-            stdout, stderr = _run_command(
-                f"{executable} {input_tmp_json_path} {output_file}"
-            )
+                stdout, stderr = _run_command(
+                    f"{executable} {input_tmp_json_path} {output_file}"
+                )
 
-            with open(output_file, "r") as f:
-                output = json.load(f)
-            os.remove(output_file)
+                with open(output_file, "r") as f:
+                    output = json.load(f)
+                os.remove(output_file)
 
-        if return_stdout_and_stderr:
-            return output, stdout, stderr
+            if return_stdout_and_stderr:
+                return output, stdout, stderr
 
-        return output
+            return output
+
+        except Exception as e:
+            print(f"Error running executable: {e}")
+            if os.path.exists(executable):
+                os.remove(executable)
 
 
 def diff_io(observed_output, expected_output) -> bool:
