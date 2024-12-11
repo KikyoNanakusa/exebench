@@ -379,9 +379,9 @@ def run_eval_pipeline(args: Namespace) -> int:
             # Check exebench function itself is testable or not
             try:
                 if not is_exebench_function_valid(row):
-                    break
+                    continue
             except Exception:
-                break
+                continue
 
             # Compile the C program to assembly
             c_source_code = (
