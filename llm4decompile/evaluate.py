@@ -289,8 +289,8 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
             if os.path.exists(obj_output):
                 os.remove(obj_output)
 
-    except Exception:
-        logger.error(f"Error in compile_and_write: {traceback.format_exc()}")
+    except Exception as e:
+        print(f"Error in compiling {function_name}")
     finally:
         # Remove the assembly output files
         for opt_state in OPT:
