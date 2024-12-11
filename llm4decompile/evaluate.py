@@ -355,12 +355,6 @@ def run_eval_pipeline(args: Namespace) -> int:
         gpu_memory_utilization=args.gpu_memory_utilization,
     )
 
-    sampling_params = SamplingParams(
-        temperature=args.temperature,
-        max_tokens=args.max_new_tokens,
-        stop=stop_sequences,
-    )
-
     print(f"Model loaded: {model_path}")
     try:
         dataset = load_dataset("jordiae/exebench", split="test_synth")
@@ -416,6 +410,12 @@ def run_eval_pipeline(args: Namespace) -> int:
                 count += 1
                 if count > 5:
                     break
+
+        sampling_params = SamplingParams(
+            temperature=args.temperature,
+            max_tokens=args.max_new_tokens,
+            stop=stop_sequences,
+        )
 
         gen_results_repeat = []
         logger.info(f"The exp will loop for {args.repeat} times....")
