@@ -219,7 +219,7 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
     """
     asm_all = {}
 
-    input_file_name = "tmp.c"
+    input_file_name = tempfile.NamedTemporaryFile(delete=False, suffix=".c").name
     input_text = input_text.replace("__attribute__((used)) ", "")
 
     with open(input_file_name, "w") as f:
