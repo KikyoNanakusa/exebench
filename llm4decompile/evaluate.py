@@ -22,7 +22,6 @@ logger.add(sys.stdout, colorize=False, format="{time} {level} {message}")
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 zeros_pattern = r"^0+\s"  # 0000000000000...
 OPT = ["O0", "O1", "O2", "O3"]
-compile_error_count = 0
 
 
 def parse_args() -> Namespace:
@@ -235,7 +234,7 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
     return 0
 
 
-def compile_and_write(function_name, input_text, error_counter) -> dict[str, str]:
+def compile_and_write(function_name, input_text) -> dict[str, str]:
     """
     The function `compile_and_write` compiles a C program, generates assembly code, cleans and filters
     the assembly code, and returns the cleaned assembly code for different optimization states.
@@ -291,10 +290,7 @@ def compile_and_write(function_name, input_text, error_counter) -> dict[str, str
                 os.remove(obj_output)
 
     except Exception:
-        # カウントのインクリメント
-        with error_counter.get_lock():
-            error_counter.value += 1
-
+        logger.error(f"Error in compile_and_write: {traceback.format_exc()}")
     finally:
         # Remove the assembly output files
         for opt_state in OPT:
@@ -331,7 +327,7 @@ def is_exebench_function_valid(row) -> bool:
     )
 
 
-def process_row(row, compile_error_counter, args):
+def process_row(row, args):
     try:
         # Check exebench function itself is testable or not
         if not is_exebench_function_valid(row):
@@ -345,7 +341,7 @@ def process_row(row, compile_error_counter, args):
             + row["func_def"]
         )
 
-        asm_all = compile_and_write(row["fname"], c_source_code, compile_error_counter)
+        asm_all = compile_and_write(row["fname"], c_source_code)
 
         prompts = []
         testset = []
@@ -364,8 +360,6 @@ def process_row(row, compile_error_counter, args):
 
 
 def run_eval_pipeline(args: Namespace) -> int:
-    compile_error_counter = Value("i", 0)
-
     # Load model
     model_path = Path(args.model_path)
     logger.info(f"Model is {model_path}")
@@ -380,9 +374,7 @@ def run_eval_pipeline(args: Namespace) -> int:
     dataset = load_dataset("jordiae/exebench", split="test_synth")
 
     with Pool(args.num_workers) as pool:
-        process_func = partial(
-            process_row, compile_error_counter=compile_error_counter, args=args
-        )
+        process_func = partial(process_row, args=args)
         results = list(tqdm(pool.imap(process_func, dataset), total=len(dataset)))
 
     prompts = []
