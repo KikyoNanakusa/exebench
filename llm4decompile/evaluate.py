@@ -264,7 +264,7 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
                     tmp_asm = tmp_asm.split("#")[0].strip()  # remove the comments
                     asm_clean += tmp_asm + "\n"
                 if len(asm_clean.split("\n")) < 4:
-                    raise ValueError("compile fails")
+                    raise ValueError(f"compile fails. asm_clean:\n{asm_clean}")
                 asm = asm_clean
 
                 # Filter digits and attributes
@@ -293,26 +293,30 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
 
 
 def is_exebench_function_valid(row) -> bool:
-    synth_wrapper = Wrapper(
-        c_deps=row["synth_deps"]
-        + "\n"
-        + row["synth_io_pairs"]["dummy_funcs"][0]
-        + "\n"
-        + row["func_def"],
-        func_c_signature=row["func_head_types"].replace("extern", ""),
-        func_assembly=None,
-        cpp_wrapper=row["synth_exe_wrapper"],
-    )
+    try:
+        synth_wrapper = Wrapper(
+            c_deps=row["synth_deps"]
+            + "\n"
+            + row["synth_io_pairs"]["dummy_funcs"][0]
+            + "\n"
+            + row["func_def"],
+            func_c_signature=row["func_head_types"].replace("extern", ""),
+            func_assembly=None,
+            cpp_wrapper=row["synth_exe_wrapper"],
+        )
 
-    # Check if the decompiled function can be compiled and run correctly
-    test_output = synth_wrapper(
-        exebench_dict_to_dict(row["synth_io_pairs"]["input"][0])
-    )
+        # Check if the decompiled function can be compiled and run correctly
+        test_output = synth_wrapper(
+            exebench_dict_to_dict(row["synth_io_pairs"]["input"][0])
+        )
 
-    return diff_io(
-        test_output,
-        exebench_dict_to_dict(row["synth_io_pairs"]["output"][0]),
-    )
+        return diff_io(
+            test_output,
+            exebench_dict_to_dict(row["synth_io_pairs"]["output"][0]),
+        )
+    except Exception as e:
+        logger.error(f"Error in validating Wrapper execution: {e}")
+        return False
 
 
 def process_row(row, args):
