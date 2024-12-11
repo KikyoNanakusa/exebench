@@ -377,7 +377,10 @@ def run_eval_pipeline(args: Namespace) -> int:
         count = 0  # for debugging
         for row in progress_bar:
             # Check exebench function itself is testable or not
-            if not is_exebench_function_valid(row):
+            try:
+                if not is_exebench_function_valid(row):
+                    break
+            except Exception:
                 break
 
             # Compile the C program to assembly
@@ -416,6 +419,9 @@ def run_eval_pipeline(args: Namespace) -> int:
             max_tokens=args.max_new_tokens,
             stop=stop_sequences,
         )
+
+        logger.info("input length: %d", len(inputs))
+        print("input length: %d", len(inputs))
 
         gen_results_repeat = []
         logger.info(f"The exp will loop for {args.repeat} times....")
