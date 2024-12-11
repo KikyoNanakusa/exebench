@@ -345,8 +345,23 @@ def run_eval_pipeline(args: Namespace) -> int:
 
     # load the model
     model_path = Path(args.model_path)
-    print(f"Model loaded from {model_path}")
+    print(f"Model is {model_path}")
 
+    # Prepare the model
+    llm = LLM(
+        model=args.model_path,
+        tensor_parallel_size=args.gpus,
+        max_model_len=args.max_total_tokens,
+        gpu_memory_utilization=args.gpu_memory_utilization,
+    )
+
+    sampling_params = SamplingParams(
+        temperature=args.temperature,
+        max_tokens=args.max_new_tokens,
+        stop=stop_sequences,
+    )
+
+    print(f"Model loaded: {model_path}")
     try:
         dataset = load_dataset("jordiae/exebench", split="test_synth")
 
@@ -367,6 +382,7 @@ def run_eval_pipeline(args: Namespace) -> int:
 
         count = 0  # for debugging
         for row in progress_bar:
+            # Check exebench function itself is testable or not
             if not is_exebench_function_valid(row):
                 break
 
@@ -400,20 +416,6 @@ def run_eval_pipeline(args: Namespace) -> int:
                 count += 1
                 if count > 5:
                     break
-
-        # Prepare the model
-        llm = LLM(
-            model=args.model_path,
-            tensor_parallel_size=args.gpus,
-            max_model_len=args.max_total_tokens,
-            gpu_memory_utilization=args.gpu_memory_utilization,
-        )
-
-        sampling_params = SamplingParams(
-            temperature=args.temperature,
-            max_tokens=args.max_new_tokens,
-            stop=stop_sequences,
-        )
 
         gen_results_repeat = []
         logger.info(f"The exp will loop for {args.repeat} times....")
