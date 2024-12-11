@@ -121,17 +121,14 @@ class _DefaultAssembler(_Assembler):
     def __call__(self, c_deps, func_c_signature, func_assembly, cpp_wrapper) -> Path:
         with _get_tmp_path(content=None, suffix=".x", delete=False) as executable_path:
             c_deps += f"\nextern {func_c_signature};\n"
+
             with _get_tmp_path(content=c_deps, suffix=".c") as c_deps_path:
                 cpp_wrapper = re.sub(
                     r"extern\s\"C\"\s\{\s.*\s\}",
                     'extern "C" \n{\n#include "' + c_deps_path + '"\n}\n',
                     cpp_wrapper,
-                )  # replace tmp path
-                with _get_tmp_path(
-                    content=cpp_wrapper, suffix=".cpp"
-                ) as cpp_path, _get_tmp_path(
-                    content=func_assembly, suffix=".s"
-                ) as s_path:
+                )
+                with _get_tmp_path(content=cpp_wrapper, suffix=".cpp") as cpp_path:
                     cmd = f"g++ -fpermissive -O0 -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I{_SYNTH_LIBS_PATH}"
 
                     stdout, stderr = _run_command(cmd)
@@ -149,8 +146,6 @@ def _compile_exe_path(
 
 
 # API
-
-
 class Wrapper:
     def __init__(
         self,

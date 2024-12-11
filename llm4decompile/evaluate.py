@@ -306,6 +306,11 @@ def is_exebench_function_valid(row) -> bool:
 
 def process_row(row, args):
     try:
+        if args.debug:
+            print(f"synth_deps:\n{row['synth_deps']}")
+            print(f"func_def:\n{row['func_def']}")
+            print(f"cpp_wrapper:\n{row['synth_exe_wrapper']}")
+
         # Check exebench function itself is testable or not
         if not is_exebench_function_valid(row):
             return None
@@ -317,9 +322,6 @@ def process_row(row, args):
             + "\n"
             + row["func_def"]
         )
-
-        if args.debug:
-            print(f"source code:\n{c_source_code}")
 
         asm_all = compile_and_write(row["fname"], c_source_code)
 
