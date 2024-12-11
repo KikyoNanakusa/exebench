@@ -49,7 +49,7 @@ def evaluate_func(params) -> tuple[int, int]:
     """
     The function `evaluate_func` compiles and runs a decompiled C function, checking for successful
     compilation and execution within a specified timeout period.
-    
+
     :param params: The `evaluate_func` function takes in a dictionary `params` as input, which should
     contain the following keys:
     :return: The function `evaluate_func` returns a tuple containing two integers: `flag_compile` and
@@ -133,7 +133,7 @@ def safe_evaluate_func(task):
     """
     The `safe_evaluate_func` function attempts to evaluate a task using `evaluate_func` and logs any
     errors that occur, returning (0, 0) in case of an exception.
-    
+
     :param task: It seems like you have provided a function `safe_evaluate_func` that wraps around
     another function `evaluate_func` to handle any exceptions that may occur during its execution.
     However, the definition of the `evaluate_func` function is missing in your code snippet
@@ -150,7 +150,7 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
     """
     This function calculates and prints the average compile and run rates for different optimization
     levels based on evaluation results.
-    
+
     :param testset: The `testset` parameter in the `decompile_pass_rate` function is likely a list of
     dictionaries containing information about test data. Each dictionary in the `testset` list probably
     has keys like "exebench_dict" and "opt" that store specific data related to the test cases
@@ -237,20 +237,6 @@ def compile_and_write(function_name, input_text, error_counter) -> dict[str, str
     """
     The function `compile_and_write` compiles a C program, generates assembly code, cleans and filters
     the assembly code, and returns the cleaned assembly code for different optimization states.
-    
-    :param function_name: The `function_name` parameter in the `compile_and_write` function represents
-    the name of the function within the C program for which you want to generate assembly code. This
-    function will extract the assembly code for the specified function from the compiled object file
-    :param input_text: The `input_text` parameter in the `compile_and_write` function is the text
-    content of a C program that you want to compile and analyze. It represents the source code of the C
-    program that will be written to a temporary file for compilation and disassembly
-    :param error_counter: The `error_counter` parameter in the `compile_and_write` function is used to
-    keep track of the number of errors encountered during the compilation process. It is a shared
-    variable that allows multiple processes to increment its value when an error occurs. This helps in
-    monitoring and handling errors effectively in a concurrent environment
-    :return: A dictionary containing assembly code strings for different optimization states is being
-    returned. The keys in the dictionary correspond to the optimization states, and the values are the
-    corresponding cleaned assembly code strings.
     """
     asm_all = {}
 
@@ -320,11 +306,34 @@ def compile_and_write(function_name, input_text, error_counter) -> dict[str, str
     return asm_all
 
 
+def is_exebench_function_valid(row) -> bool:
+    synth_wrapper = Wrapper(
+        c_deps=row["synth_deps"]
+        + "\n"
+        + row["synth_io_pairs"]["dummy_funcs"][0]
+        + "\n"
+        + row["func_def"],
+        func_c_signature=row["func_head_types"].replace("extern", ""),
+        func_assembly=None,
+        cpp_wrapper=row["synth_exe_wrapper"],
+    )
+
+    # Check if the decompiled function can be compiled and run correctly
+    test_output = synth_wrapper(
+        exebench_dict_to_dict(row["synth_io_pairs"]["input"][0])
+    )
+
+    return diff_io(
+        test_output,
+        exebench_dict_to_dict(row["synth_io_pairs"]["output"][0]),
+    )
+
+
 def run_eval_pipeline(args: Namespace) -> int:
     """
     The function `run_eval_pipeline` loads a model, processes compilation tasks, generates outputs using
     a language model, and calculates a decompile pass rate based on the generated results.
-    
+
     :param args: The `args` parameter in the `run_eval_pipeline` function is of type `Namespace`, which
     is typically used to hold command-line arguments parsed by the `argparse` module in Python. It
     contains the arguments and their values provided by the user when running the script. These
@@ -358,6 +367,9 @@ def run_eval_pipeline(args: Namespace) -> int:
 
         count = 0  # for debugging
         for row in progress_bar:
+            if not is_exebench_function_valid(row):
+                break
+
             # Compile the C program to assembly
             c_source_code = (
                 row["synth_deps"]
@@ -381,7 +393,7 @@ def run_eval_pipeline(args: Namespace) -> int:
             compile_count += 1
             # update the progress bar
             progress_bar.set_description(
-                f"Processing compilation, error count {compile_error_counter.value}"
+                f"Processing compilation, error count {compile_error_counter.value} / {compile_count}"
             )
 
             if args.debug:
