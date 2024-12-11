@@ -15,6 +15,8 @@ from vllm import LLM, SamplingParams
 from datasets import load_dataset
 from exebench import Wrapper, diff_io, exebench_dict_to_dict
 import re
+from multiprocessing import Pool, Value
+from functools import partial
 
 logger.add(sys.stdout, colorize=False, format="{time} {level} {message}")
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -329,25 +331,44 @@ def is_exebench_function_valid(row) -> bool:
     )
 
 
+def process_row(row, compile_error_counter, args):
+    try:
+        # Check exebench function itself is testable or not
+        if not is_exebench_function_valid(row):
+            return None  # 無効な場合はスキップ
+
+        c_source_code = (
+            row["synth_deps"]
+            + "\n"
+            + row["synth_io_pairs"]["dummy_funcs"][0]
+            + "\n"
+            + row["func_def"]
+        )
+
+        asm_all = compile_and_write(row["fname"], c_source_code, compile_error_counter)
+
+        prompts = []
+        testset = []
+        before = "# This is the assembly code:\n"
+        after = "\n# What is the source code?\n"
+        for opt, asm in asm_all.items():
+            prompt = before + asm + after
+            prompts.append(prompt)
+            data = {"opt": opt, "prompt": prompt, "exebench_dict": row}
+            testset.append(data)
+
+        return prompts, testset
+    except Exception as e:
+        logger.error(f"Error processing row: {e}")
+        return None
+
+
 def run_eval_pipeline(args: Namespace) -> int:
-    """
-    The function `run_eval_pipeline` loads a model, processes compilation tasks, generates outputs using
-    a language model, and calculates a decompile pass rate based on the generated results.
+    compile_error_counter = Value("i", 0)
 
-    :param args: The `args` parameter in the `run_eval_pipeline` function is of type `Namespace`, which
-    is typically used to hold command-line arguments parsed by the `argparse` module in Python. It
-    contains the arguments and their values provided by the user when running the script. These
-    arguments can be accessed
-    :type args: Namespace
-    :return: The function `run_eval_pipeline` returns an integer value.
-    """
-    compile_error_counter = multiprocessing.Value("i", 0)
-
-    # load the model
+    # Load model
     model_path = Path(args.model_path)
-    print(f"Model is {model_path}")
-
-    # Prepare the model
+    logger.info(f"Model is {model_path}")
     llm = LLM(
         model=args.model_path,
         tensor_parallel_size=args.gpus,
@@ -355,91 +376,37 @@ def run_eval_pipeline(args: Namespace) -> int:
         gpu_memory_utilization=args.gpu_memory_utilization,
     )
 
-    print(f"Model loaded: {model_path}")
-    try:
-        dataset = load_dataset("jordiae/exebench", split="test_synth")
+    logger.info(f"Model loaded: {model_path}")
+    dataset = load_dataset("jordiae/exebench", split="test_synth")
 
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-        stop_sequences = [tokenizer.eos_token]
-
-        # prompt templates
-        before = "# This is the assembly code:\n"
-        after = "\n# What is the source code?\n"
-        inputs = []
-        testset = []
-
-        compile_count = 0
-        progress_bar = tqdm(
-            dataset,
-            desc=f"Processing compilation, error count {compile_error_counter.value}",
+    with Pool(args.num_workers) as pool:
+        process_func = partial(
+            process_row, compile_error_counter=compile_error_counter, args=args
         )
+        results = list(tqdm(pool.imap(process_func, dataset), total=len(dataset)))
 
-        count = 0  # for debugging
-        for row in progress_bar:
-            # Check exebench function itself is testable or not
-            try:
-                if not is_exebench_function_valid(row):
-                    continue
-            except Exception:
-                continue
+    prompts = []
+    testset = []
+    for result in results:
+        if result:
+            prompts.extend(result[0])
+            testset.extend(result[1])
 
-            # Compile the C program to assembly
-            c_source_code = (
-                row["synth_deps"]
-                + "\n"
-                + row["synth_io_pairs"]["dummy_funcs"][0]
-                + "\n"
-                + row["func_def"]
-            )
-            asm_all: dict[str, str] = compile_and_write(
-                row["fname"], c_source_code, compile_error_counter
-            )
+    sampling_params = SamplingParams(
+        temperature=args.temperature,
+        max_tokens=args.max_new_tokens,
+        stop=[AutoTokenizer.from_pretrained(model_path).eos_token],
+    )
 
-            # Prepare the prompt
-            for opt, asm in asm_all.items():
-                prompt = before + asm + after
-                inputs.append(prompt)
+    logger.info("input length: %d", len(prompts))
+    gen_results_repeat = []
+    for i in range(args.repeat):
+        logger.info(f"The {i+1} loop...")
+        gen_results = llm.generate(prompts, sampling_params)
+        gen_results = [[output.outputs[0].text] for output in gen_results]
+        gen_results_repeat.append(gen_results)
 
-                data = {"opt": opt, "prompt": prompt, "exebench_dict": row}
-                testset.append(data)
-
-            compile_count += 1
-            # update the progress bar
-            progress_bar.set_description(
-                f"Processing compilation, error count {compile_error_counter.value} / {compile_count}"
-            )
-
-            if args.debug:
-                count += 1
-                if count > 5:
-                    break
-
-        sampling_params = SamplingParams(
-            temperature=args.temperature,
-            max_tokens=args.max_new_tokens,
-            stop=stop_sequences,
-        )
-
-        logger.info("input length: %d", len(inputs))
-        print("input length: %d", len(inputs))
-
-        gen_results_repeat = []
-        logger.info(f"The exp will loop for {args.repeat} times....")
-        for i in range(args.repeat):
-            logger.info(f"The {i+1} loop...")
-            gen_results = llm.generate(inputs, sampling_params)
-            gen_results = [[output.outputs[0].text] for output in gen_results]
-            if args.debug:
-                print(f"gen_results: \n{gen_results}")
-            gen_results_repeat.append(gen_results)
-
-    except Exception as e:
-        logger.error(e)
-        traceback.print_exc()
-        return -1
-
-    ret = decompile_pass_rate(testset, gen_results_repeat, args)
-    return ret
+    return decompile_pass_rate(testset, gen_results_repeat, args)
 
 
 def main():
