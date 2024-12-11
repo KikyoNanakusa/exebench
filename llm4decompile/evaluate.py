@@ -353,7 +353,7 @@ def run_eval_pipeline(args: Namespace) -> int:
     logger.info(f"Model loaded: {model_path}")
     dataset = load_dataset("jordiae/exebench", split="test_synth")
     if args.debug:
-        dataset = dataset[..10]
+        dataset = dataset.select(range(10))
 
     with Pool(args.num_workers) as pool:
         process_func = partial(process_row, args=args)
