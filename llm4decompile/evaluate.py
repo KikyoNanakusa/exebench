@@ -220,14 +220,7 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
     asm_all = {}
 
     input_file_name = "tmp.c"
-
-    if "/* Variables and functions */" in input_text:
-        # Exclude macro and types
-        input_text = input_text.split("/* Variables and functions */")[-1]
-        input_text = "\n\n".join(input_text.split("\n\n")[1:])  # Exclude variables
-        ##### begin of remove __attribute__
-        input_text = input_text.replace("__attribute__((used)) ", "")
-        ##### end of remove __attribute__
+    input_text = input_text.replace("__attribute__((used)) ", "")
 
     with open(input_file_name, "w") as f:
         f.write(input_text)
@@ -238,12 +231,20 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
             asm_output = input_file_name + "_" + opt_state + ".s"
 
             # Compile the C program to object file
-            subprocess.run(
+            compile_output = subprocess.run(
                 ["gcc", "-c", "-o", obj_output, input_file_name, "-" + opt_state],
                 check=True,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
             )
+
+            stderr = (
+                compile_output.stderr.decode("utf-8")
+                if isinstance(compile_output.stderr, bytes)
+                else compile_output.stderr
+            )
+
+            if stderr:
+                raise ValueError(stderr)
 
             # Generate assembly code from object file using objdump
             subprocess.run(
@@ -316,11 +317,6 @@ def is_exebench_function_valid(row) -> bool:
 
 def process_row(row, args):
     try:
-        if args.debug:
-            print(f"synth_deps:\n{row['synth_deps']}")
-            print(f"func_def:\n{row['func_def']}")
-            print(f"cpp_wrapper:\n{row['synth_exe_wrapper']}")
-
         # Check exebench function itself is testable or not
         if not is_exebench_function_valid(row):
             return None
