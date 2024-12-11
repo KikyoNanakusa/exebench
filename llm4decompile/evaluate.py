@@ -105,6 +105,7 @@ def evaluate_func(params) -> tuple[int, int]:
             # Compile the C program to an assembly
             compile_command = [
                 "gcc",
+                "-w",
                 "-c",
                 "-S",
                 c_file_onlyfunc,
@@ -219,6 +220,15 @@ def compile_and_write(function_name, input_text) -> dict[str, str]:
     asm_all = {}
 
     input_file_name = "tmp.c"
+
+    if "/* Variables and functions */" in input_text:
+        # Exclude macro and types
+        input_text = input_text.split("/* Variables and functions */")[-1]
+        input_text = "\n\n".join(input_text.split("\n\n")[1:])  # Exclude variables
+        ##### begin of remove __attribute__
+        input_text = input_text.replace("__attribute__((used)) ", "")
+        ##### end of remove __attribute__
+
     with open(input_file_name, "w") as f:
         f.write(input_text)
 
