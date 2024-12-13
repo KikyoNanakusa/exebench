@@ -91,7 +91,6 @@ def evaluate_func(params) -> tuple[int, int]:
             flag_run = 1
     except Exception as e:
         logging.error(f"Error in Wrapper execution: {e}")
-        return flag_compile, flag_run
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
