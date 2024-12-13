@@ -335,6 +335,9 @@ def process_row(row, args):
         )
 
         asm_all = compile_and_write(row["fname"], c_source_code)
+        # Check compile was successful for all optimization
+        if len(asm_all) != 4:
+            return None
 
         prompts = []
         testset = []

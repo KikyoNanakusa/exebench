@@ -129,7 +129,7 @@ class _DefaultAssembler(_Assembler):
                     cpp_wrapper,
                 )
                 with _get_tmp_path(content=cpp_wrapper, suffix=".cpp") as cpp_path:
-                    cmd = f"g++ -fpermissive -O2 -w -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I {_SYNTH_LIBS_PATH}"
+                    cmd = f"g++ -fpermissive -O0 -w -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I {_SYNTH_LIBS_PATH}"
 
                     stdout, stderr = _run_command(cmd)
 
