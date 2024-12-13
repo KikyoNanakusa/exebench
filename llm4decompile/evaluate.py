@@ -100,7 +100,13 @@ def evaluate_func(params) -> tuple[int, int]:
             executable_onlyfunc = os.path.join(temp_dir, f"onlyfunc_{pid}")
 
             with open(c_file_onlyfunc, "w") as f:
-                f.write(dataset_row["synth_deps"] + "\n" + decompiled_c_func)
+                f.write(
+                    dataset_row["synth_deps"]
+                    + "\n"
+                    + dataset_row["dummy_funcs"][0]
+                    + "\n"
+                    + decompiled_c_func
+                )
 
             # Compile the C program to an assembly
             compile_command = [
