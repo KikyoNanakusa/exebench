@@ -102,7 +102,7 @@ def evaluate_func(params) -> tuple[int, int]:
                 f.write(
                     dataset_row["synth_deps"]
                     + "\n"
-                    + dataset_row["dummy_funcs"][0]
+                    + dataset_row["synth_io_pairs"]["dummy_funcs"][0]
                     + "\n"
                     + decompiled_c_func
                 )
