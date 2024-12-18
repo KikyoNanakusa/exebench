@@ -131,7 +131,7 @@ def evaluate_func(params) -> tuple[int, int, int]:
     except subprocess.CalledProcessError as e:
         print(f"GCC compilation failed: {e}")
         print(f"decompiled code compile error: {e.stderr}")
-        if "not declared" in e.stderr:
+        if "undeclared" in e.stderr:
             flag_undefined = 1
     except subprocess.TimeoutExpired as e:
         print(f"GCC compilation timed out: {e}")
