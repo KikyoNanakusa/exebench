@@ -200,6 +200,8 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
                 stats[opt]["compile"] += 1
             if flag_run:
                 stats[opt]["run"] += 1
+            if flag_undefined:
+                stats[opt]["undefined_error"] += 1
 
         all_stats.append(stats)
 
