@@ -182,7 +182,8 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
             )
 
         stats: dict[str, dict[str, int]] = {
-            opt: {"compile": 0, "run": 0, "total": 0} for opt in OPT
+            opt: {"compile": 0, "run": 0, "undefined_error": 0, "total": 0}
+            for opt in OPT
         }
 
         for _, (data, output, flag) in enumerate(
