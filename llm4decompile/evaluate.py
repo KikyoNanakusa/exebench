@@ -66,6 +66,7 @@ def evaluate_func(params) -> tuple[int, int]:
     timeout = 10
     flag_compile = 0
     flag_run = 0
+    flag_undefined = 0
 
     try:
         synth_wrapper = Wrapper(
@@ -90,7 +91,7 @@ def evaluate_func(params) -> tuple[int, int]:
         ):
             flag_run = 1
     except Exception as e:
-        logging.error(f"Error in Wrapper execution: {e}")
+        print(f"Error in Wrapper execution: {e}")
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -121,11 +122,11 @@ def evaluate_func(params) -> tuple[int, int]:
             subprocess.run(compile_command, check=True, timeout=timeout)
             flag_compile = 1
     except subprocess.CalledProcessError as e:
-        logging.error(f"GCC compilation failed: {e}")
+        print(f"GCC compilation failed: {e}")
     except subprocess.TimeoutExpired as e:
-        logging.error(f"GCC compilation timed out: {e}")
+        print(f"GCC compilation timed out: {e}")
     except Exception as e:
-        logging.error(f"Unexpected error during GCC compilation: {e}")
+        print(f"Unexpected error during GCC compilation: {e}")
 
     return flag_compile, flag_run
 
