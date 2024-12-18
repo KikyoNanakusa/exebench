@@ -119,10 +119,18 @@ def evaluate_func(params) -> tuple[int, int]:
                 executable_onlyfunc,
                 "-lm",
             ]
-            subprocess.run(compile_command, check=True, timeout=timeout)
+            subprocess.run(
+                compile_command,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                text=True,
+                check=True,
+                timeout=timeout,
+            )
             flag_compile = 1
     except subprocess.CalledProcessError as e:
         print(f"GCC compilation failed: {e}")
+        print(f"decompiled code compile error: {e.stderr}")
     except subprocess.TimeoutExpired as e:
         print(f"GCC compilation timed out: {e}")
     except Exception as e:
