@@ -48,17 +48,17 @@ def _run_command(
             else output.stderr
         )
         if stderr:
-            print(f"Command error: {stderr}")
+            raise subprocess.CalledProcessError(1, command, output.stderr)
         return stdout, stderr
     except subprocess.TimeoutExpired as e:
         print(f"Command timeout: {e}")
-        raise
+        raise e
     except subprocess.CalledProcessError as e:
         print(f"Command failed with return code {e.returncode}: {e.output}")
-        raise
+        raise e
     except Exception as e:
         print(f"Unexpected error while running command: {e}")
-        raise
+        raise e
 
 
 def _get_host_process_id():
@@ -131,11 +131,14 @@ class _DefaultAssembler(_Assembler):
                 with _get_tmp_path(content=cpp_wrapper, suffix=".cpp") as cpp_path:
                     cmd = f"g++ -fpermissive -O0 -w -o {executable_path} {cpp_path} -I {_ROOT_PATH_FOR_JSON_HPP} -I {_SYNTH_LIBS_PATH}"
 
-                    stdout, stderr = _run_command(cmd)
+                    try:
+                        stdout, stderr = _run_command(cmd)
+                    except Exception as e:
+                        raise Exception(f"Error compiling executable: {e}")
 
                     if stderr:
                         print(f"stderr: {stderr}")
-                        return None
+                        executable_path = None
 
         return Path(executable_path)
 
