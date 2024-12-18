@@ -135,7 +135,7 @@ class _DefaultAssembler(_Assembler):
 
                     if stderr:
                         print(f"stderr: {stderr}")
-                        excutable_path = None
+                        return None
 
         return Path(executable_path)
 
