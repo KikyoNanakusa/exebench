@@ -44,7 +44,7 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def evaluate_func(params) -> tuple[int, int]:
+def evaluate_func(params) -> tuple[int, int, int]:
     """
     The function `evaluate_func` compiles and runs a decompiled C function, checking for successful
     compilation and execution within a specified timeout period.
@@ -131,12 +131,14 @@ def evaluate_func(params) -> tuple[int, int]:
     except subprocess.CalledProcessError as e:
         print(f"GCC compilation failed: {e}")
         print(f"decompiled code compile error: {e.stderr}")
+        if "not declared" in e.stderr:
+            flag_undefined = 1
     except subprocess.TimeoutExpired as e:
         print(f"GCC compilation timed out: {e}")
     except Exception as e:
         print(f"Unexpected error during GCC compilation: {e}")
 
-    return flag_compile, flag_run
+    return flag_compile, flag_run, flag_undefined
 
 
 def safe_evaluate_func(task):
@@ -190,7 +192,7 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
                 desc="Evaluating",
             )
         ):
-            flag_compile, flag_run = flag[0], flag[1]
+            flag_compile, flag_run, flag_undefined = flag[0], flag[1], flag[2]
             opt = data["opt"]
 
             stats[opt]["total"] += 1
@@ -202,25 +204,30 @@ def decompile_pass_rate(testset, gen_results_repeat, args) -> int:
         all_stats.append(stats)
 
     avg_stats: dict[str, dict[str, float]] = {
-        opt: {"compile": 0, "run": 0, "total": 0} for opt in OPT
+        opt: {"compile": 0, "run": 0, "undefined_error": 0, "total": 0} for opt in OPT
     }
 
     for stats in all_stats:
         for opt in OPT:
             avg_stats[opt]["compile"] += stats[opt]["compile"]
             avg_stats[opt]["run"] += stats[opt]["run"]
+            avg_stats[opt]["undefined_error"] += stats[opt]["undefined_error"]
             avg_stats[opt]["total"] += stats[opt]["total"]
 
     for opt in OPT:
         avg_stats[opt]["compile"] /= len(gen_results_repeat)
         avg_stats[opt]["run"] /= len(gen_results_repeat)
+        avg_stats[opt]["undefined_error"] /= len(gen_results_repeat)
         avg_stats[opt]["total"] /= len(gen_results_repeat)
 
     for opt, data in avg_stats.items():
         compile_rate = data["compile"] / data["total"] if data["total"] > 0 else 0
         run_rate = data["run"] / data["total"] if data["total"] > 0 else 0
+        undefined_error_rate = (
+            data["undefined_error"] / data["total"] if data["total"] > 0 else 0
+        )
         print(
-            f"Optimization {opt}: Compile Rate: {compile_rate:.4f}, Run Rate: {run_rate:.4f}"
+            f"Optimization {opt}: Compile Rate: {compile_rate:.4f}, Run Rate: {run_rate:.4f}, Undefined Error Rate {undefined_error_rate:.4f}"
         )
 
     return 0
